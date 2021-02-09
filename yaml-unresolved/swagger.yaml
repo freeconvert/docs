@@ -1,0 +1,1306 @@
+openapi: 3.0.0
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/freeconvert/fc-api/1.0.0
+info:
+  description: API For Freeconverter
+  version: "1.0.0"
+  title: FC API
+  contact:
+    email: freeconvert.com@gmail.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+tags:
+  - name: user
+    description: Show current user
+paths:
+  /accounts/me:
+    get:
+      tags:
+       - user
+      description: Show the current user information
+      responses:
+        '200':
+          description: Successful user lookup, returns a list of attributes for the user in the response body. 
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of the user
+                  email:
+                    type: string
+                    description: Email of the user
+                  created_at:
+                    type: string
+                    description: User registration date
+                  credit:
+                    type: integer
+                    description: API credits remaining on the user's account.
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      operationId: getJobs
+      summary: List jobs
+      parameters:
+        - name: status
+          in: query
+          description: |
+            List jobs matching the specified status.
+          required: false
+          schema:
+            type: string
+            enum: [created, processing, completed, failed]
+        - name: tag
+          in: query
+          description: |
+            Show a list of jobs containing the specified tag.
+          required: false
+          schema:
+            type: string
+        - name: include
+          in: query
+          description: |
+            include <code>tasks</code> of each job in the job list.
+          required: false
+          schema:
+            type: string
+            enum: [tasks]
+        - name: per_page
+          in: query
+          description: |
+            Number of jobs per page, defaults to 50. Limited at 200.
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: |
+            If the list of jobs include multiple pages, this specify which page to show.
+          required: false
+          schema:
+            type: integer
+      description: |
+        Get a list of all jobs for the current user
+      responses:
+        '200':
+          description: |
+            Successful jobs lookup, returns a list of jobs in the response body. You can get more details on the response format by referring to <a href="">Show a Job endpoint</a>??
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  docs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                  totalDocs:
+                    type: integer
+                    example: 150
+                  limit:
+                    type: integer
+                    example: 10
+                  totalPages:
+                    type: integer
+                    example: 15
+                  page:
+                    type: integer
+                    example: 1
+                  pagingCounter:
+                    type: integer
+                    example: 16
+                  hasPrevPage:
+                    type: boolean
+                    example: false
+                  hasNextPage:
+                    type: boolean
+                    example: true
+                  prevPage:
+                    type: integer
+                    example: null
+                  nextPage:
+                    type: integer
+                    example: 2 
+        '400':
+          description: Invalid input parameters.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          description: Too many requests.
+    post:
+      tags:
+        - Jobs
+      summary: Create jobs
+      description: |
+        Creates a new job along with all of its tasks. A job cretaion request must include at least one task.
+      responses:
+        '201':
+          description: Job succesfully created. Returns details of the created job as per the <a ahref="cnn.com" target="_blank"> Show jobs</a> ?? endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: 'invalid input, object invalid'
+        '429':
+          description: Too many requests.          
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tasks]                  
+              properties:
+                tag:
+                  type: string
+                  description: |
+                    An abitrary string which has no effect. It can be used to identify a job with an ID in your system/application.                  
+                tasks:
+                  type: "object"
+                  required: [operation]                  
+                  properties:
+                    operation:
+                      type: "string"                
+                      description: |
+                        Specify the endpoint for the given task. For example, <code>import/upload</code>, <code>convert</code>, <code>export/s3</code>...etc.
+                    input:
+                      oneOf:
+                        - type: string
+                        - type: array
+                          items: 
+                            type: string
+                      description: |
+                        Specify the names of the input tasks for the task. For example, in a <code>convert</code> task, you can enter the <code>import</code> task's name to convert that specific imported file. You can also enter multiple input task names in an array.
+                    ignore_error:
+                      type: "boolean"                  
+                      description: |
+                        By default, the job will fail even if one of the tasks within it fails. You can ignore failure of specific tasks with this property.
+                    Other: 
+                      type: "string"                  
+                      description: |
+                        List of available properties for a task depends on the task's <code>operation</code>. CC added it like this to refer users to the full list of task properties. Is this ok?? ++ Not sure yet, need to check while implementing on our code
+                  description: |
+                       A job consists of one or more tasks. For example, the example shown inludes an import, conversion, and a export task. Task names should only contain alphanumerals, dash (-), and underscore (_).
+            
+                        Each task must specify an <code>operation</code> which is used to route the task to an API endpoint. The example shown lists 3 tasks with <code>import/upload</code>, <code>convert</code>, and <code>export/url</code> operations.
+              example:   
+                tag: 'custom-tag'
+                tasks: {
+                  "my-upload-1": {
+                    "operation": "import/upload"
+                  },
+                  "convert-task-1": {
+                    "operation": "convert",
+                    "input": "my-upload-1",
+                    "output_format": "png"
+                  },
+                  "export-task-1": {
+                    "operation": "export/url",
+                    "input": "convert-task-1",
+                    "filename": "output-file.png"
+                  }
+                }
+        description: EXAMPLE REQUEST
+  '/jobs/{jobId}':
+    get:
+      tags:
+        - Jobs
+      operationId: getJobById
+      summary: Show a job
+      parameters:
+        - name: jobId
+          in: path
+          description: ID of the job to show
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Show details of a job using its job ID.
+      responses:
+        '200':
+          description: |
+            Successful lookup, job details returned in the response body. ?? is this ok ++ its not encoded, maybe we can just say "Successful lookup"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: Bad input parameter
+        '429':
+          description: Too many requests.          
+    delete:
+      tags:
+        - Jobs
+      operationId: deleteJobById
+      summary: Delete a job
+      parameters:
+        - name: jobId
+          in: path
+          description: |
+            ID of the job to delete.
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Deleting a job would delete all the tasks and files of that job. 
+            
+        All jobs are automatically deleted 4 hours after they have completed or failed.?? should this be "they are created"? ++ haven't set the logic yet for this, whatever you want to set
+      responses:
+        '204':
+          description: |
+            Job succesfully deleted (empty response body).
+        '400':
+          description: Bad input parameter.
+        '429':
+          description: Too many requests.
+  '/jobs/{jobId}/wait':
+    get:
+      tags:
+        - Jobs
+      operationId: waitForJobById
+      summary: Wait for job
+      parameters:
+        - name: jobId
+          in: path
+          description: ID of job to wait for
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Block the request until the job status is <code>success</code> or <code>failed</code>. 
+        
+        This method is not recommended since your system may timeout the request for jobs that takes a long time to complete (i.e. large video conversions). Please note that we may also queue your jobs when our systems are busy.
+        
+        Instead, use webhooks to receive notification of job completion or error.
+      responses:
+        '200':
+          description: |
+            Returns the completed or failed job details (status, tasks...etc)?? confirm this...??the example on the left shows a status "created" but this endpoint only returns success or failed jobs? ++ yes, it returns after job moves to completed or failed status, we need to add example here and write the response ourselves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: bad input parameter
+        '429':
+          description: Too many requests.          
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      operationId: getTasks
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          description: |
+            List tasks matching the specified status (for example, <code>processing</code>, <code>success<code>, <code>failed<code>...etc.)
+          required: false
+          schema:
+            type: string
+            enum: [created, processing, completed, failed]
+        - name: operation
+          in: query
+          description: |
+            FIlter the list to only show tasks with a given operation (for example, <code>import/url</code>, <code>convert<code>...etc.)
+          required: false
+          schema:
+            type: string
+        - name: job
+          in: query
+          description: |
+            Show a list of tasks for the specified job id. ??shouldn't enum list "jobs"? ++ no, its like /tasks?job=SOME_JOB_ID
+          required: false
+          schema:
+            type: string
+            enum: [tasks]
+        - name: per_page
+          in: query
+          description: |
+            Number of tasks per page, defaults to 50. Limited at 200.
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: |
+            If the list of tasks include multiple pages, this specify which page to show.
+          required: false
+          schema:
+            type: integer
+      description: |
+        Get a list of all tasks for the current user with payload, results, and status.
+      responses:
+        '200':
+          description: |
+            Successful tasks lookup, returns a list of tasks in the response body.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  docs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                    example: [{
+                        name: "import-1",
+                        operation: "import/upload",
+                        status: "processing",
+                        ignoreError: false,
+                        endedAt: null,
+                        job: "5ff3e22059136b0023324b1f",
+                        payload: {
+                          "redirect": "https://example.com"
+                        },
+                        createdAt: "2021-01-05T03:50:56.067Z",
+                        updatedAt: "2021-01-05T03:50:56.115Z",
+                        server: "local.freeconvert.com",
+                        result: {
+                          form: {
+                            url: "https://local.freeconvert.com/api/upload/5ff3e7337e69c10060706883",
+                            parameters: {
+                              expires: 1609834355208,
+                              size_limit: 5368709120,
+                              max_file_count: 1,
+                              signature: "46d0fab9c3534661"
+                            }
+                          }
+                        },
+                        id: "5ff3e22059136b0023324b20"
+                      },
+                      {
+                        name: "convert-1",
+                        operation: "convert",
+                        status: "processing",
+                        ignoreError: false,
+                        endedAt: null,
+                        job: "5ff3e22059136b0023324b1f",
+                        payload: {
+                          input_format: 'jpg',
+                          output_format: 'png',
+                          options: { quality: 75 }
+                        },
+                        dependsOn: ["5ff3e22059136b0023324b20"],
+                        createdAt: "2021-01-05T03:50:56.067Z",
+                        updatedAt: "2021-01-05T03:50:56.115Z",
+                        server: "local.freeconvert.com",
+                        id: "5ff3e22059136b0023324b20"
+                      },
+                      {
+                        name: "export-1",
+                        operation: "export/url",
+                        status: "processing",
+                        ignoreError: false,
+                        endedAt: null,
+                        job: "5ff3e22059136b0023324b1f",
+                        payload: {
+                          filename: 'some.pdf',
+                          archive_multiple_files: true
+                        },
+                        dependsOn: ["5fcb12f03f51983f4074dfb3", "5fcb12f03f51983f4074dfb4"],
+                        createdAt: "2021-01-05T03:50:56.067Z",
+                        updatedAt: "2021-01-05T03:50:56.115Z",
+                        server: "local.freeconvert.com",
+                        id: "5ff3e22059136b0023324b20"
+                      }]
+                  totalDocs:
+                    type: integer
+                    example: 150
+                  limit:
+                    type: integer
+                    example: 10
+                  totalPages:
+                    type: integer
+                    example: 15
+                  page:
+                    type: integer
+                    example: 1
+                  pagingCounter:
+                    type: integer
+                    example: 16
+                  hasPrevPage:
+                    type: boolean
+                    example: false
+                  hasNextPage:
+                    type: boolean
+                    example: true
+                  prevPage:
+                    type: integer
+                    example: null
+                  nextPage:
+                    type: integer
+                    example: 2
+        '400':
+          description: Invalid input parameters.
+        '429':
+          description: Too many requests.
+  '/tasks/{taskId}':
+    get:
+      tags:
+        - Tasks
+      operationId: getTaskById
+      summary: Show a Task
+      parameters:
+        - name: taskId
+          in: path
+          description: ID of the task to show.
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+        - name: include
+          in: query
+          description: description ??.
+          required: false
+          schema:
+            type: string
+            enum: [payload,dependsOn,job]
+      description: |
+        Show details of a task using its task Id.?? CC cloudconvert.com/api/v2/tasks#tasks-show has a query parameter called 'include' that we should also add above. Also, they show a detailed "RETURNS" section in that URL. How can we get that
+      responses:
+        '200':
+          description: |
+            Successful lookup, task details returned in the response body. ?? is this ok?
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: bad input parameter
+        '429':
+          description: Too many requests.             
+    delete:
+      tags:
+        - Tasks
+      operationId: deleteTaskById
+      summary: Delete a task
+      parameters:
+        - name: taskId
+          in: path
+          description: |
+            ID of the task to delete.
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Deleting a task also deletes its files. 
+            
+        All tasks are automatically deleted 4 hours after they have started?? Is started correct here.
+      responses:
+        '204':
+          description: |
+            Task succesfully deleted (empty response body). ??Awsaf, let's return 204 here stackoverflow.com/a/29545993
+        '400':
+          description: Bad input parameter.
+        '429':
+          description: Too many requests.          
+  '/tasks/{taskId}/wait':
+    get:
+      tags:
+        - Tasks
+      operationId: waitForTaskById
+      summary: Wait for task
+      parameters:
+        - name: taskId
+          in: path
+          description: ID of task to wait for
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Block the request until the task status is <code>success</code> or <code>failed</code>. 
+        
+        This method is not recommended since your system may timeout the request for tasks that takes a long time to complete (i.e. large video conversions). We may also queue your tasks when our systems are busy.
+        
+        Instead, use webhooks to receive notification of task completion or error.
+      responses:
+        '200':
+          description: |
+            Returns the completed or failed task details (status, operation...etc)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Bad input parameter
+        '429':
+          description: Too many requests.          
+  '/tasks/{taskId}/cancel':
+    post:
+      tags:
+        - Tasks
+      operationId: cancelTaskById
+      summary: Cancel a task
+      parameters:
+        - name: taskId
+          in: path
+          description: ID of task to wait for
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: |
+        Cancel a task that has a status of <code>created, ready, queued, or processing</code>
+      responses:
+        '200':
+          description: |
+            Returns the updated task details (status, operation...etc)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Bad input parameter
+        '429':
+          description: Too many requests.          
+  '/import/upload':
+    post:
+      tags:
+        - Import Files
+      summary: Upload
+      description: |
+        Creates an upload task to submit one file to FreeConvert.com. You can also use this method to directly send your user's files to FreeConvert without storing them on your application.
+        
+        For example, you could use the <code>form</code> object in the <code>result</code> key of the response to allow browser-based file uploading.
+        
+        Here is an example on how to utilize the <code>url</code> and other post <code>parameters</code> from our response to create a file upload form.
+
+        <form action="https://upload.cloudconvert.com/d660c0df-d15e-468a-9554-917e0f0f3ef1/"
+        method="POST"
+        enctype="multipart/form-data">
+            <input type="hidden" name="expires" value="1545444403">
+            <input type="hidden" name="max_file_count" value="1">
+            <input type="hidden" name="max_file_size" value="10000000000">
+            <input type="hidden" name="signature" value="d0db9b5e4ff7283xxfe0b1e3ad6x1db95c616121">
+            <input type="file" name="file">
+            <input type="submit">
+        </form>
+        </code>
+        
+        **IMPORTANT** post <code>parameters</code> are dynamically generated. Do not hardcode them in your application.
+        
+        **IMPORTANT** post <code>parameters</code> (both keys and values) are dynamically generated. Do not hardcode them in your application.
+        
+        Task status change to <code>completed</code> as soon as the upload finishes.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                redirect:
+                  type: string
+              example:   
+                redirect: 'https://example.com'
+      responses:
+        '201':
+          description: File successfully imported.
+          content:
+            application/json:
+              example:   
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  redirect: "https://example.com"
+                }
+                operation: "import/upload"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                result: {
+                  form: {
+                    url: "https://local.freeconvert.com/api/upload/5ff3e7337e69c10060706883",
+                    parameters: {
+                      expires: 1609834355208,
+                      size_limit: 5368709120,
+                      max_file_count: 1,
+                      signature: "46d0fab9c3534661"
+                    }
+                  }
+                }
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/import/url':
+    post:
+      tags:
+        - Import Files
+      summary: URL
+      description: Creates a new task to import a file into FreeConvert from an URL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  description: ==
+                filename:
+                  type: string
+                header:
+                  type: object
+              example:
+                url: 'https://example.com/some.jpg'
+                filename: 'some.jpg'
+                header: { options: 'data' }
+      responses:
+        '201':
+          description: Task succesfully created. Returns details of the created task as per the <a ahref="cnn.com" target="_blank">show tasks</a> ?? endpoint
+          content:
+            application/json:
+              example:   
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  url: "https://example.com",
+                  filename: 'some.jpg',
+                  header: { options: 'data' }
+                }
+                operation: "import/url"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/convert':
+    post:
+      tags:
+        - Convert
+      summary: Create a task
+      description: Creates a task to convert one input file from an <code>input_format</code> to <code>outut_format</code>
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: string
+                input_format:
+                  type: string
+                output_format:
+                  type: string
+                options:
+                  type: object
+              example:
+                input: '5fcb12f03f51983f4074dfb3'
+                input_format: 'jpg'
+                output_format: 'png'
+                options: { quality: 75 }
+      responses:
+        '201':
+          description: ==
+          content:
+            application/json:
+              example:   
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  input_format: 'jpg',
+                  output_format: 'png',
+                  options: { quality: 75 }
+                }
+                dependsOn: ["5ff3e22059136b0023324b20"]
+                operation: "convert"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/compress':
+    post:
+      tags:
+        - Compress
+      summary: Create a Compress task
+      description: Creates a task to compress one input file
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: string
+                input_format:
+                  type: string
+                filename:
+                  type: string
+                options:
+                  type: object
+              example:
+                input: '5fcb12f03f51983f4074dfb3'
+                input_format: 'jpg'
+                output_format: 'png'
+                options: { quality: 75 }
+      responses:
+        '201':
+          description: ==
+          content:
+            application/json:
+              example:   
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  input_format: 'pdf',
+                  filename: 'sample.pdf',
+                  options: { pdf_compression_level: 'strong', pdf_convert_to_gray: true }
+                }
+                dependsOn: ["5ff3e22059136b0023324b20"]
+                operation: "compress"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/merge':
+    post:
+      tags:
+        - Merge
+      summary: creaate Upload Import task
+      description: Creates a new job along with it's tasks. A job cretaion API request must include at least one task.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: array
+                  items: 
+                    type: string
+                output_format:
+                  type: string
+                filename:
+                  type: string
+                options:
+                  type: object
+              example:
+                input: ['5fcb12f03f51983f4074dfb3', '5fcb12f03f51983f4074dfb4']
+                output_format: 'pdf'
+                filename: 'some.pdf'
+                options: { option_key: 'option_value' }
+      responses:
+        '201':
+          description: ==
+          content:
+            application/json:
+              example:
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  output_format: 'pdf',
+                  filename: 'some.pdf',
+                  options: { option_key: 'option_value' }
+                }
+                dependsOn: ["5fcb12f03f51983f4074dfb3", "5fcb12f03f51983f4074dfb4"]
+                operation: "merge"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/export/url':
+    post:
+      tags:
+        - URL Export
+      summary: creaate Upload Import task
+      description: Creates a new job along with it's tasks. A job cretaion API request must include at least one task.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: array
+                  items: 
+                    type: string
+                filename:
+                  type: string
+                archive_multiple_files:
+                  type: boolean
+              example:
+                input: ['5fcb12f03f51983f4074dfb3', '5fcb12f03f51983f4074dfb4']
+                filename: 'some.zip'
+                archive_multiple_files: true
+      responses:
+        '201':
+          description: ==
+          content:
+            application/json:
+              example:   
+                status: "processing"
+                ignoreError: false
+                endedAt: null
+                job: "5ff3e22059136b0023324b1f"
+                payload: {
+                  filename: 'some.pdf',
+                  archive_multiple_files: true
+                }
+                dependsOn: ["5fcb12f03f51983f4074dfb3", "5fcb12f03f51983f4074dfb4"]
+                operation: "export/url"
+                createdAt: "2021-01-05T03:50:56.067Z"
+                updatedAt: "2021-01-05T03:50:56.115Z"
+                server: "local.freeconvert.com"
+                id: "5ff3e22059136b0023324b20"
+        '400':
+          description: 'invalid input, object invalid'
+  '/notification/webhooks':
+    get:
+      tags: 
+        - Webhooks
+      summary: List Webhooks
+      parameters:
+        - name: name
+          in: query
+          description: |
+            List webhooks matching the specified name.
+          required: false
+          schema:
+            type: string
+        - name: url
+          in: query
+          description: |
+            List webhooks matching the specified url.
+          required: false
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: |
+            Number of webhooks per page, defaults to 50. Limited at 200.
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: |
+            If the list of webhooks include multiple pages, this specify which page to show.
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: |
+            Successful jobs lookup, returns a list of jobs in the response body. You can get more details on the response format by referring to <a href="">Show a Job endpoint</a>??
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  docs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+                  totalDocs:
+                    type: integer
+                    example: 150
+                  limit:
+                    type: integer
+                    example: 10
+                  totalPages:
+                    type: integer
+                    example: 15
+                  page:
+                    type: integer
+                    example: 1
+                  pagingCounter:
+                    type: integer
+                    example: 16
+                  hasPrevPage:
+                    type: boolean
+                    example: false
+                  hasNextPage:
+                    type: boolean
+                    example: true
+                  prevPage:
+                    type: integer
+                    example: null
+                  nextPage:
+                    type: integer
+                    example: 2 
+        '400':
+          description: Invalid input parameters.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          description: Too many requests.
+    post:
+      tags: 
+        - Webhooks
+      summary: Create a Webhook
+      description: Create a webhook. Required the webhook.write scope??
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - job.created
+                      - job.finished
+                      - job.failed
+      responses:
+        '201':
+          description: Returns the created webhook. Please see example on the right.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: 'invalid input, object invalid'
+        '429':
+          description: Too many requests.
+  '/notification/webhooks/{webhookId}':
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete a Webhook
+      parameters:
+        - name: webhookId
+          in: path
+          description: |
+            ID of the webhook to delete.
+          required: true
+          schema:
+            type: string
+            format: ObjectID
+      description: Delete a webhook. Requires the webhook.write scope??
+      responses:
+        '204':
+          description: |
+            Webhook succesfully deleted (empty response body).
+        '400':
+          description: Bad input parameter.
+        '429':
+          description: Too many requests.
+components:
+  schemas:
+    Job:
+      type: object
+      required:
+        - tasks
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 5ff3e22059136b0023324b1f
+          readOnly: true
+          description: ID of the job
+        tag:
+          type: string
+          description: | 
+            An abitrary string which has no effect. It can be used to identify a job with an ID in your system/application.
+          example: my-job
+        createdAt:
+          type: string
+          description: Timestamp of the creation of the job (ISO8601)
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+        updatedAt:
+          type: string
+          description: ISO8601 timestamp of the last update of job.
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+        endedAt:
+          type: string
+          description: Timestamp of when the job completed or failed (ISO8601)
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+        status:
+          type: string
+          description: |
+            Status of the Job
+          readOnly: true
+          enum: [created, ready, queued, processing, success, failed]
+          example: created
+        tasks:
+          type: "array"
+          xml:
+            name: "task"
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Task'
+          example: [
+            {
+              name: "import-1",
+              operation: "import/upload",
+              status: "processing",
+              ignoreError: false,
+              endedAt: null,
+              job: "5ff3e22059136b0023324b1f",
+              payload: {
+                "redirect": "https://example.com"
+              },
+              createdAt: "2021-01-05T03:50:56.067Z",
+              updatedAt: "2021-01-05T03:50:56.115Z",
+              server: "local.freeconvert.com",
+              result: {
+                form: {
+                  url: "https://local.freeconvert.com/api/upload/5ff3e7337e69c10060706883",
+                  parameters: {
+                    expires: 1609834355208,
+                    size_limit: 5368709120,
+                    max_file_count: 1,
+                    signature: "46d0fab9c3534661"
+                  }
+                }
+              },
+              id: "5ff3e22059136b0023324b20"
+            },
+            {
+              name: "convert-1",
+              operation: "convert",
+              status: "processing",
+              ignoreError: false,
+              endedAt: null,
+              job: "5ff3e22059136b0023324b1f",
+              payload: {
+                input_format: 'jpg',
+                output_format: 'png',
+                options: { quality: 75 }
+              },
+              dependsOn: ["5ff3e22059136b0023324b20"],
+              createdAt: "2021-01-05T03:50:56.067Z",
+              updatedAt: "2021-01-05T03:50:56.115Z",
+              server: "local.freeconvert.com",
+              id: "5ff3e22059136b0023324b20"
+            },
+            {
+              name: "export-1",
+              operation: "export/url",
+              status: "processing",
+              ignoreError: false,
+              endedAt: null,
+              job: "5ff3e22059136b0023324b1f",
+              payload: {
+                filename: 'some.pdf',
+                archive_multiple_files: true
+              },
+              dependsOn: ["5fcb12f03f51983f4074dfb3", "5fcb12f03f51983f4074dfb4"],
+              createdAt: "2021-01-05T03:50:56.067Z",
+              updatedAt: "2021-01-05T03:50:56.115Z",
+              server: "local.freeconvert.com",
+              id: "5ff3e22059136b0023324b20"
+            }
+          ]
+    Task:
+      type: object
+      required:
+        - operation
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: ID of the task
+        operation:
+          type: string
+          enum: [
+              import/upload,
+              import/url,
+              import/s3,
+              import/googleCloud,
+              import/azureBlob,
+              import/base64,
+              import/sftp,
+              convert,
+              compress,
+              merge,
+              archieve,
+              export/upload,
+              export/url,
+              export/s3,
+              export/googleCloud,
+              export/azureBlob,
+              export/base64,
+              export/sftp
+            ]
+          example: 'convert'
+          description: Name of the operation. For example, to upload a file to FreeConvert using the URL upload method requires a task with operation <code>import/url</code>.
+        status:
+          type: string
+          readOnly: true
+          enum: [created, ready, queued, processing, success, failed]
+          example: created
+          description: Status of the task. Can be one of <code>[created, ready, queued, processing, success, failed]</code>
+        payload:
+          type: object
+          description: Payload sent by you for the task. Payload depends on the type of operation of the task.
+          example: {
+            options: {
+              quality: 75
+            }
+          }
+        job:
+          type: string
+          format: uuid
+          description: The Job ID the task belongs to.
+        result:
+          readOnly: true
+          type: object
+          example: {
+            url: 'http://example.com/output.ext'
+          }
+          description: Shows the result of the task. If the task has succesfully finished, result property will list the created file(s) here.
+        endedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the task finished. Format ISO8601.
+        dependsOn:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+          example: [{
+            name: "import-1",
+            operation: "import/upload",
+            status: "processing",
+            ignoreError: false,
+            endedAt: null,
+            job: "5ff3e22059136b0023324b1f",
+            payload: {
+              "redirect": "https://example.com"
+            },
+            createdAt: "2021-01-05T03:50:56.067Z",
+            updatedAt: "2021-01-05T03:50:56.115Z",
+            server: "local.freeconvert.com",
+            id: "5ff3e22059136b0023324b20"
+          }]
+          description: List the task(s) this task depends on. For example, a convert task may list an upload task as a dependency. Only available if the <code>include</code> parameter is set to <code>dependsOn</code>.
+        conversionMinutes:
+          type: number
+          description: |
+            Total conversion minutes used by the task. Only conversion and optimizing task conversion minutes are counted towards your account usage.
+          example: 1
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the task is created. Format ISO8601.
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the task was last updated. Format ISO8601.
+    Webhook:
+      type: object
+      required:
+        - name, url, events
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: ID of the webhook
+          example: 5ff3e22059136b0023424b20
+        name:
+          type: string
+          description: Name of the webhook
+          example: example-webhook
+        status:
+          type: string
+          description: Status of the webhook
+          enum: [active, inactive]
+          example: active
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - job.created
+              - job.finished
+              - job.failed
+          description: Events for which this webhook will be notified for
+          example: [job.created, job.finished]
+        url:
+          type: string
+          description: Webhook URL
+          example: http://your-domain.com/endpoint
+        signingSecret:
+          type: string
+          readOnly: true
+          description: Webhook signing secret
+          example: XXXXXXXXXXXXXXX
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the webhook is created. Format ISO8601.
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the webhook was last updated. Format ISO8601.
+        lastErrorAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2016-08-29T09:12:33.001Z'
+          description: Timestamp of when the webhook was last rejected. Format ISO8601.
+        lastResponseCode:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 'NETWORK_ERROR'
+          description: Last error message received when sending the webhook.
+        links:
+          type: object
+          example: {
+            "self": "http://api.freeconvert.com/notification/webhooks/5ff3e22059136b0023424b20"
+          }
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+security:
+  - BearerAuth: []
