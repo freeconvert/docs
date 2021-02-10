@@ -284,11 +284,7 @@ paths:
       responses:
         '200':
           description: |
-            Returns the completed or failed job details (status, tasks...etc)?? confirm this...??the example on the left shows a status "created" but this endpoint only returns success or failed jobs? ++ yes, it returns after job moves to completed or failed status, we need to add example here and write the response ourselves
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
+            Returns the completed or failed job details including it's tasks??
         '400':
           description: bad input parameter
         '429':
@@ -529,10 +525,6 @@ paths:
         '200':
           description: |
             Returns the completed or failed task details (status, operation...etc)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
         '400':
           description: Bad input parameter
         '429':
@@ -1259,36 +1251,36 @@ components:
         url:
           type: string
           description: Webhook URL
-          example: http://your-domain.com/endpoint
+          example: http://your-domain.com/webhook-url
         signingSecret:
           type: string
           readOnly: true
           description: Webhook signing secret
-          example: XXXXXXXXXXXXXXX
+          example: XXXXXXXXXXXX
         createdAt:
           type: string
           format: date-time
           readOnly: true
-          example: '2016-08-29T09:12:33.001Z'
+          example: '2020-07-17T07:14:56.004Z'
           description: Timestamp of when the webhook is created. Format ISO8601.
         updatedAt:
           type: string
           format: date-time
           readOnly: true
-          example: '2016-08-29T09:12:33.001Z'
+          example: '2020-08-29T07:15:23.005Z'
           description: Timestamp of when the webhook was last updated. Format ISO8601.
         lastErrorAt:
           type: string
           format: date-time
           readOnly: true
-          example: '2016-08-29T09:12:33.001Z'
+          example: '2020-07-21T02:16:03.000Z'
           description: Timestamp of when the webhook was last rejected. Format ISO8601.
         lastResponseCode:
           type: string
           format: date-time
           readOnly: true
           example: 'NETWORK_ERROR'
-          description: Last error message received when sending the webhook.
+          description: Last error message received timestamp when sending the webhook.
         links:
           type: object
           example: {
